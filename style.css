@@ -1,0 +1,26 @@
+html,
+body {
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+#SVG_Object {
+    width: 100%;
+    border: 5px solid grey;
+    box-sizing: border-box;
+    padding: 40px;
+}
+
+.wrapper {
+    height: 100%;
+    width: 1280px;
+    margin: 0 auto;
+    position: relative;
+    text-align: center;
+}
+
+#SVG-container {
+    min-width: 300px;
+    min-height: 300px;
+}
