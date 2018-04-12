@@ -2,7 +2,7 @@
               <style type="text/css">
                 <![CDATA[
                 svg {
-                    
+                    cursor: default;
                 }
                 a.connector:hover {
                     fill: red;

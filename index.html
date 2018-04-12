@@ -53,11 +53,11 @@
                 }
 
                 init() {
-                    this.container.removeAttribute('height');
-                    this.container.removeAttribute('width');
                     let keys = Object.keys(this._model);
                     keys = keys.filter(id => this._model[id].type === 'connector' && !this._model[id].isVisible);
                     keys.forEach((id) => this.hideElements(id));
+
+                    this.container.setAttribute('width', this.x1 - this.x);
                     this.changeSVGDimensions();
                 }
 
@@ -75,17 +75,17 @@
                         data.innerGeometryData = element.getBBox();
                         data.innerGeometryData.x1 = data.innerGeometryData.x + data.innerGeometryData.width;
                         data.innerGeometryData.y1 = data.innerGeometryData.y + data.innerGeometryData.height;
-                        this.x = this.x 
-                            ? data.innerGeometryData.x < this.x ? data.innerGeometryData.x : this.x
-                            : data.innerGeometryData.x;
+                        this.x = this.x ?
+                            data.innerGeometryData.x < this.x ? data.innerGeometryData.x : this.x :
+                            data.innerGeometryData.x;
 
-                        this.y = this.y 
-                            ? data.innerGeometryData.y < this.y ? data.innerGeometryData.y : this.y
-                            : data.innerGeometryData.y;
+                        this.y = this.y ?
+                            data.innerGeometryData.y < this.y ? data.innerGeometryData.y : this.y :
+                            data.innerGeometryData.y;
 
-                        this.x1 = this.x1 
-                            ? data.innerGeometryData.x1 > this.x1 ? data.innerGeometryData.x1 : this.x1
-                            : data.innerGeometryData.x1;
+                        this.x1 = this.x1 ?
+                            data.innerGeometryData.x1 > this.x1 ? data.innerGeometryData.x1 : this.x1 :
+                            data.innerGeometryData.x1;
 
                         that._model[data.id] = data;
                         if (data.type === 'connector') {
@@ -214,43 +214,29 @@
 
                 }
 
-                changeSVGDimensions() {
-                    const padding = 20;
 
+                setHeightAttribute(coord_y) {
+                    const height = coord_y - this.y;
+
+                    this.container.setAttribute('height', height);
+                    this.container.setAttribute('viewBox', `${this.x} ${this.y} ${this.x1 - this.x} ${height}`);
+                }
+
+                changeSVGDimensions() {
                     let keys = Object.keys(this._model);
                     keys = keys.filter(id => this._model[id].element.getAttribute('display') !== 'none');
 
-                    const firstCoordData = this._model[keys[0]].innerGeometryData;
-                    const coordinates = {
-                        // x: firstCoordData.x,
-                        // y: firstCoordData.y,
-                        // x1: firstCoordData.x1,
-                        y1: firstCoordData.y1
-                    };
-
-                    const updatedCoord = keys.reduce((coord, id) => {
-                        // if (this._model[id].innerGeometryData.x < coordinates.x) {
-                        //     coordinates.x = this._model[id].innerGeometryData.x;
-                        // };
-                        // if (this._model[id].innerGeometryData.y < coordinates.y) {
-                        //     coordinates.y = this._model[id].innerGeometryData.y;
-                        // };
-                        // if (this._model[id].innerGeometryData.x1 > coordinates.x1) {
-                        //     coordinates.x1 = this._model[id].innerGeometryData.x1;
-                        // };
-                        if (this._model[id].innerGeometryData.y1 > coordinates.y1) {
-                            coordinates.y1 = this._model[id].innerGeometryData.y1;
+                    const coord_y = keys.reduce((coord, id) => {
+                        if (this._model[id].innerGeometryData.y1 > coord) {
+                            coord = this._model[id].innerGeometryData.y1;
                         };
                         return coord;
-                    }, coordinates);
-
-                    this.container.setAttribute('viewBox', `${this.x - padding } ${this.y - padding} ${this.x1 - this.x + 2*padding } ${coordinates.y1 - this.y + 2*padding}`);
-                    this.container.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+                    }, 0);
+                    this.setHeightAttribute(coord_y);
                 }
             };
 
             const SVG = document.getElementById('SVG_Object');
-
 
             const container = SVG.getSVGDocument().querySelector('svg');
 
