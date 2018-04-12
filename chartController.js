@@ -147,8 +147,8 @@ class ChartModel {
     }
 
     collapseOrExpandElements(elementID) {
-        console.log(model._model[elementID].isExpanded ? 'collapsed' : 'expanded');
-        model._model[elementID].isExpanded = !model._model[elementID].isExpanded;
+        console.log(this._model[elementID].isExpanded ? elementID + 'collapsed' : elementID + 'expanded');
+        this._model[elementID].isExpanded = !this._model[elementID].isExpanded;
     }
 
     setHeightAttribute(coord_y) {
