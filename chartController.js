@@ -58,8 +58,7 @@ class ChartModel {
         const outputArrows = element.outputArrows;
 
         if (outputArrows.length) {
-            const items = outputArrows.reduce((res, id) => res.concat(this.findElementsByIputArrowID(
-                id)), []);
+            const items = outputArrows.reduce((res, id) => res.concat(this.findElementsByIputArrowID(id)), []);
 
             const innerItems = items.reduce((result, currentElement) => {
                 const elements = this.findAllElements(currentElement);
@@ -76,8 +75,7 @@ class ChartModel {
         const outputArrows = element && element.outputArrows;
 
         if (outputArrows && outputArrows.length) {
-            const items = outputArrows.reduce((res, id) => res.concat(this.findElementsByIputArrowID(
-                id)), []);
+            const items = outputArrows.reduce((res, id) => res.concat(this.findElementsByIputArrowID(id)), []);
 
             const innerItems = items.reduce((result, currentElement) => {
                 const elements = (currentElement.type && currentElement.type !==
@@ -100,15 +98,23 @@ class ChartModel {
         }, []);
     }
 
-    findElementsByIputArrowID(arrowID) {
+    findElementsByArrowID(arrowID, isInput) {
         let result = [];
         for (let key in this._model) {
-            const arrows = this._model[key].inputArrows;
+            const arrows = isInput ? this._model[key].inputArrows : this._model[key].outputArrows;
             if (arrows && arrows.indexOf(arrowID) > -1) {
                 result.push(this._model[key]);
             };
         };
         return result;
+    }
+
+    findElementsByIputArrowID(arrowID) {
+        return this.findElementsByArrowID(arrowID, true);
+    }
+
+    findElementsByOutputArrowID(arrowID) {
+        return this.findElementsByArrowID(arrowID, false);
     }
 
     hideElements(connectorElementID) {
@@ -146,14 +152,46 @@ class ChartModel {
         });
     }
 
-    collapseOrExpandElements(elementID) {
-        console.log(this._model[elementID].isExpanded ? elementID + 'collapsed' : elementID + 'expanded');
-        this._model[elementID].isExpanded = !this._model[elementID].isExpanded;
+    collapseOrExpandBody(elementID) {
+        // console.log(this._model[elementID].isExpanded ? elementID + 'collapsed' : elementID + 'expanded');
+        let bodyElementId;
+
+        for (let key in this._model) {
+            if (this._model[key].parentID === elementID) {
+                bodyElementId = key;
+                break;
+            };
+        };
+
+        const bodyElement = this._model[bodyElementId];
+
+        // console.log(this.findArrowsLinkedWithBody(bodyElementId));
+        const elementsArray = this.findAllElements(this._model[bodyElementId]);
+        const arrowsAndElements = this.defineElementsWithLinkedArrows(elementsArray);
+        if (bodyElement.element.getAttribute('display') !== 'none') {
+            bodyElement.element.setAttribute('display', 'none');
+            arrowsAndElements.forEach(el => this._model[el].element.setAttribute('transform', `translate(0,-${bodyElement.innerGeometryData.height})`));
+        } else {
+            bodyElement.element.setAttribute('display', 'block');
+            arrowsAndElements.forEach(el => this._model[el].element.removeAttribute('transform'));
+        }
     }
+
+    findArrowsLinkedWithBody(elementID) {
+        let arrows = [].concat(this._model[elementID].inputArrows, this._model[elementID].outputArrows);
+        arrows = arrows.filter(id => {
+            return (this._model[id].innerGeometryData.y + this._model[id].innerGeometryData.height) > this._model[elementID].innerGeometryData.y;
+        })
+        return arrows;
+    }
+
+    // isArrowVertical(arrowID) {
+    //     const arrowDimensions = this._model[arrowID].element.getBBox();
+    //     return (arrowDimensions.height >= arrowDimensions.width) ? true : false;
+    // }
 
     setHeightAttribute(coord_y) {
         const height = coord_y - this.y;
-
         this.container.setAttribute('height', height);
         this.container.setAttribute('viewBox', `${this.x} ${this.y} ${this.x1 - this.x} ${height}`);
     }
@@ -207,15 +245,10 @@ window.addEventListener('load', () => {
                 model._model[id].isVisible ? model.hideElements(id) : model.showElements(
                     id)
                 model._model[id].isVisible = !model._model[id].isVisible;
-                // model.hideOrShowElements(id);
+            } else if (id && model._model[id].type === 'header') {
+                model.collapseOrExpandBody(id);
             }
             model.changeSVGDimensions();
-        });
-        el.addEventListener('dblclick', (e) => {
-            const id = e.currentTarget.dataset['id'];
-            if (id && model._model[id].type === 'body') {
-                model.collapseOrExpandElements(id);
-            }
         });
     });
 });
