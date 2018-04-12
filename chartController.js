@@ -180,12 +180,10 @@ window.addEventListener('load', () => {
 
     const container = SVG.getSVGDocument().querySelector('svg');
 
-    /* TODO try to add stylesheet to XML dynamicaly
-    * 
-    * let newEle = SVG.getSVGDocument().createElement("xml-stylesheet");
-    * newEle.setAttribute('href', 'svg-style.css');
-    * SVG.getSVGDocument().appendChild(newEle);
-    */
+    // add stylesheet to XML dynamicaly: file name: "Lucidchart_style.css" 
+    const xs = SVG.getSVGDocument().createProcessingInstruction(
+        "xml-stylesheet", 'href="Lucidchart_style.css" type="text/css"');
+    SVG.getSVGDocument().insertBefore(xs, SVG.getSVGDocument().rootElement);
 
     const model = new ChartModel(container);
 
