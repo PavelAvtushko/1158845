@@ -1,207 +1,195 @@
-window.addEventListener('load', () => {
+class ChartModel {
+    constructor(container) {
+        this._model = {};
+        this.container = container;
+        this.x;
+        this.y;
+        this.x1;
+    }
 
-    class ChartModel {
-        constructor(container) {
-            this._model = {};
-            this.container = container;
-            this.x;
-            this.y;
-            this.x1;
-        }
+    init() {
+        this.hideAllElementsAfterConnectors();
+        this.container.setAttribute('width', this.x1 - this.x);
+        this.changeSVGDimensions();
+    }
 
-        init() {
-            let keys = Object.keys(this._model);
-            keys = keys.filter(id => this._model[id].type === 'connector' && !this._model[id].isVisible);
-            keys.forEach((id) => this.hideElements(id));
+    hideAllElementsAfterConnectors() {
+        let keys = Object.keys(this._model);
+        keys = keys.filter(id => this._model[id].type === 'connector' && !this._model[id].isVisible);
+        keys.forEach(id => this.hideElements(id));
+    }
 
-            this.container.setAttribute('width', this.x1 - this.x);
-            this.changeSVGDimensions();
-        }
+    addNewItem(elementData, element) {
+        const that = this;
+        let data;
+        try {
+            data = JSON.parse(elementData);
+            element.setAttribute('xlink:href', data.href || 'javascript:void(0);');
+            element.dataset['initInfo'] = elementData;
+            element.dataset['id'] = data.id;
+            data.element = element;
 
-        addNewItem(elementData, element) {
-            const that = this;
-            let data;
-            try {
-                data = JSON.parse(elementData);
-                element.setAttribute('xlink:href', data.href || 'javascript:void(0);');
-                element.dataset['initInfo'] = elementData;
-                element.dataset['id'] = data.id;
-                data.element = element;
+            // data.DOMgeometry = element.getBoundingClientRect();
+            data.innerGeometryData = element.getBBox();
+            data.innerGeometryData.x1 = data.innerGeometryData.x + data.innerGeometryData.width;
+            data.innerGeometryData.y1 = data.innerGeometryData.y + data.innerGeometryData.height;
+            this.x = this.x ?
+                data.innerGeometryData.x < this.x ? data.innerGeometryData.x : this.x :
+                data.innerGeometryData.x;
 
-                // data.DOMgeometry = element.getBoundingClientRect();
-                data.innerGeometryData = element.getBBox();
-                data.innerGeometryData.x1 = data.innerGeometryData.x + data.innerGeometryData.width;
-                data.innerGeometryData.y1 = data.innerGeometryData.y + data.innerGeometryData.height;
-                this.x = this.x ?
-                    data.innerGeometryData.x < this.x ? data.innerGeometryData.x : this.x :
-                    data.innerGeometryData.x;
+            this.y = this.y ?
+                data.innerGeometryData.y < this.y ? data.innerGeometryData.y : this.y :
+                data.innerGeometryData.y;
 
-                this.y = this.y ?
-                    data.innerGeometryData.y < this.y ? data.innerGeometryData.y : this.y :
-                    data.innerGeometryData.y;
+            this.x1 = this.x1 ?
+                data.innerGeometryData.x1 > this.x1 ? data.innerGeometryData.x1 : this.x1 :
+                data.innerGeometryData.x1;
 
-                this.x1 = this.x1 ?
-                    data.innerGeometryData.x1 > this.x1 ? data.innerGeometryData.x1 : this.x1 :
-                    data.innerGeometryData.x1;
-
-                that._model[data.id] = data;
-                if (data.type === 'connector') {
-                    element.classList.add('connector');
-                }
-            } catch (err) {
-                console.log(err);
+            that._model[data.id] = data;
+            if (data.type === 'connector') {
+                element.classList.add('connector');
             }
+        } catch (err) {
+            console.log(err);
         }
+    }
 
-        findAllElements(element) {
-            const outputArrows = element.outputArrows;
+    findAllElements(element) {
+        const outputArrows = element.outputArrows;
 
-            if (outputArrows.length) {
-                const items = outputArrows.reduce((res, id) => res.concat(this.findElementsByIputArrowID(
-                    id)), []);
+        if (outputArrows.length) {
+            const items = outputArrows.reduce((res, id) => res.concat(this.findElementsByIputArrowID(
+                id)), []);
 
-                const innerItems = items.reduce((result, currentElement) => {
-                    const elements = this.findAllElements(currentElement);
-                    return (elements.length > 0) ? result.concat(elements) : result;
-                }, []);
-
-                return items.concat(innerItems);
-            };
-            return [];
-        }
-
-        // find elements not all
-        findNotAllElements(element) {
-            const outputArrows = element && element.outputArrows;
-
-            if (outputArrows && outputArrows.length) {
-                const items = outputArrows.reduce((res, id) => res.concat(this.findElementsByIputArrowID(
-                    id)), []);
-
-                const innerItems = items.reduce((result, currentElement) => {
-                    const elements = (currentElement.type && currentElement.type !==
-                            'connector') ?
-                        this.findNotAllElements(currentElement) : [];
-                    return (elements.length > 0) ? result.concat(elements) : result;
-                }, []);
-
-                return items.concat(innerItems);
-            };
-            return [];
-        }
-
-        defineElementsWithLinkedArrows(elementsSet) {
-            const indentificators = elementsSet.map((a) => a.id);
-            return indentificators.reduce((res, el) => {
-                res.push(el);
-                res = res.concat(this._model[el].inputArrows, this._model[el].outputArrows);
-                return res;
+            const innerItems = items.reduce((result, currentElement) => {
+                const elements = this.findAllElements(currentElement);
+                return (elements.length > 0) ? result.concat(elements) : result;
             }, []);
-        }
 
-        findElementsByIputArrowID(arrowID) {
-            let result = [];
-            for (let key in this._model) {
-                const arrows = this._model[key].inputArrows;
-                if (arrows && arrows.indexOf(arrowID) > -1) {
-                    result.push(this._model[key]);
-                };
-            };
-            return result;
-        }
+            return items.concat(innerItems);
+        };
+        return [];
+    }
 
-        hideElements(connectorElementID) {
-            const elementItems = this.findAllElements(this._model[connectorElementID]);
-            const arrowsAndElements = this.defineElementsWithLinkedArrows(elementItems);
+    // find elements not all
+    findNotAllElements(element) {
+        const outputArrows = element && element.outputArrows;
 
-            arrowsAndElements.forEach(id => {
-                if (this._model[id].type === 'connector') {
-                    this._model[id].isVisible = false;
-                };
-                this._model[id].element.setAttribute('display', 'none');
-            });
-        }
+        if (outputArrows && outputArrows.length) {
+            const items = outputArrows.reduce((res, id) => res.concat(this.findElementsByIputArrowID(
+                id)), []);
 
-
-        partiallyDefineElementsWithLinkedArrows(elementsSet) {
-            const indentificators = elementsSet.map((a) => a.id);
-            return indentificators.reduce((res, el) => {
-                res.push(el);
-                res = res.concat(this._model[el].inputArrows, (this._model[el].isVisible ===
-                        false) ? [] :
-                    this._model[el].outputArrows);
-                return res;
+            const innerItems = items.reduce((result, currentElement) => {
+                const elements = (currentElement.type && currentElement.type !==
+                        'connector') ?
+                    this.findNotAllElements(currentElement) : [];
+                return (elements.length > 0) ? result.concat(elements) : result;
             }, []);
-        }
 
-        showElements(connectorElementID) {
-            const elementItems = this.findNotAllElements(this._model[connectorElementID]);
-            const arrowsAndElements = this.partiallyDefineElementsWithLinkedArrows(elementItems);
+            return items.concat(innerItems);
+        };
+        return [];
+    }
 
-            arrowsAndElements.forEach(id => {
-                if (this._model[id].type === 'connector') {
-                    this._model[id].isVisible = false;
-                };
-                this._model[id].element.setAttribute('display', 'block');
-            });
-        }
+    defineElementsWithLinkedArrows(elementsSet) {
+        const indentificators = elementsSet.map((a) => a.id);
+        return indentificators.reduce((res, el) => {
+            res.push(el);
+            res = res.concat(this._model[el].inputArrows, this._model[el].outputArrows);
+            return res;
+        }, []);
+    }
 
-        // hideOrShowElements(connectorElementID) {
-        //     const toHide = !this._model[connectorElementID].isVisible;
+    findElementsByIputArrowID(arrowID) {
+        let result = [];
+        for (let key in this._model) {
+            const arrows = this._model[key].inputArrows;
+            if (arrows && arrows.indexOf(arrowID) > -1) {
+                result.push(this._model[key]);
+            };
+        };
+        return result;
+    }
 
-        //     const elementItems = this.findAllElements(this._model[connectorElementID]);
-        //     const arrowsAndElements = this.defineElementsWithLinkedArrows(elementItems);
+    hideElements(connectorElementID) {
+        const elementItems = this.findAllElements(this._model[connectorElementID]);
+        const arrowsAndElements = this.defineElementsWithLinkedArrows(elementItems);
 
-        //     arrowsAndElements.forEach(id => {
-        //         //ifthis._model[id].type === 'connector' && !this._model[id].isVisible
-        //         this._model[id].element.setAttribute('display', toHide ? 'none' : 'block');
-        //     });
+        arrowsAndElements.forEach(id => {
+            if (this._model[id].type === 'connector') {
+                this._model[id].isVisible = false;
+            };
+            this._model[id].element.setAttribute('display', 'none');
+        });
+    }
 
-        //     this._model[connectorElementID].isVisible = !this._model[connectorElementID].isVisible;
+    partiallyDefineElementsWithLinkedArrows(elementsSet) {
+        const indentificators = elementsSet.map((a) => a.id);
+        return indentificators.reduce((res, el) => {
+            res.push(el);
+            res = res.concat(this._model[el].inputArrows, (this._model[el].isVisible ===
+                    false) ? [] :
+                this._model[el].outputArrows);
+            return res;
+        }, []);
+    }
 
-        //     this.changeSVGDimensions();
-        // }
+    showElements(connectorElementID) {
+        const elementItems = this.findNotAllElements(this._model[connectorElementID]);
+        const arrowsAndElements = this.partiallyDefineElementsWithLinkedArrows(elementItems);
 
-        collapseOrExpandElements(elementID) {
-            console.log(model._model[elementID].isExpanded ? 'collapsed' : 'expanded');
-            model._model[elementID].isExpanded = !model._model[elementID].isExpanded;
-        }
+        arrowsAndElements.forEach(id => {
+            if (this._model[id].type === 'connector') {
+                this._model[id].isVisible = false;
+            };
+            this._model[id].element.setAttribute('display', 'block');
+        });
+    }
 
-        takeVisibleElementsID() {
+    collapseOrExpandElements(elementID) {
+        console.log(model._model[elementID].isExpanded ? 'collapsed' : 'expanded');
+        model._model[elementID].isExpanded = !model._model[elementID].isExpanded;
+    }
 
-        }
+    setHeightAttribute(coord_y) {
+        const height = coord_y - this.y;
 
+        this.container.setAttribute('height', height);
+        this.container.setAttribute('viewBox', `${this.x} ${this.y} ${this.x1 - this.x} ${height}`);
+    }
 
-        setHeightAttribute(coord_y) {
-            const height = coord_y - this.y;
+    changeSVGDimensions() {
+        let keys = Object.keys(this._model);
+        keys = keys.filter(id => this._model[id].element.getAttribute('display') !== 'none');
 
-            this.container.setAttribute('height', height);
-            this.container.setAttribute('viewBox', `${this.x} ${this.y} ${this.x1 - this.x} ${height}`);
-        }
+        const coord_y = keys.reduce((coord, id) => {
+            if (this._model[id].innerGeometryData.y1 > coord) {
+                coord = this._model[id].innerGeometryData.y1;
+            };
+            return coord;
+        }, 0);
+        this.setHeightAttribute(coord_y);
+    }
+};
 
-        changeSVGDimensions() {
-            let keys = Object.keys(this._model);
-            keys = keys.filter(id => this._model[id].element.getAttribute('display') !== 'none');
+const replaceQuotes = str => str.replace(/'/g, '"');
 
-            const coord_y = keys.reduce((coord, id) => {
-                if (this._model[id].innerGeometryData.y1 > coord) {
-                    coord = this._model[id].innerGeometryData.y1;
-                };
-                return coord;
-            }, 0);
-            this.setHeightAttribute(coord_y);
-        }
-    };
+const SVG = document.getElementById('SVG_Object');
 
-    const SVG = document.getElementById('SVG_Object');
+window.addEventListener('load', () => {
 
     const container = SVG.getSVGDocument().querySelector('svg');
 
-    const replaceQuotes = (str) => str.replace(/'/g, '"');
+    /* TODO try to add stylesheet to XML dynamicaly
+    * 
+    * let newEle = SVG.getSVGDocument().createElement("xml-stylesheet");
+    * newEle.setAttribute('href', 'svg-style.css');
+    * SVG.getSVGDocument().appendChild(newEle);
+    */
 
     const model = new ChartModel(container);
 
-    const parseData = (element) => {
+    const parseData = element => {
         const elementData = replaceQuotes(element.getAttribute('xlink:href'));
         model.addNewItem(elementData, element);
     };
@@ -211,11 +199,11 @@ window.addEventListener('load', () => {
     model.init();
 
     // disable links
-    container.addEventListener('click', (e) => e.preventDefault());
+    container.addEventListener('click', e => e.preventDefault());
 
-    // add event listeners
+    // add event listenerslisteners
     elements.forEach(el => {
-        el.addEventListener('click', (e) => {
+        el.addEventListener('click', e => {
             const id = e.currentTarget.dataset['id'];
             if (id && model._model[id].type === 'connector') {
                 model._model[id].isVisible ? model.hideElements(id) : model.showElements(

@@ -1,0 +1,9 @@
+svg {
+    cursor: default;
+}
+
+a.connector:hover {
+    fill: red;
+    stroke: yellowgreen;
+    cursor: pointer;
+}

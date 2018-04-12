@@ -1,17 +1,5 @@
+        <?xml-stylesheet type="text/css" href="svg-style.css"?>
         <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:lucid="lucid" width="1760" height="1360">
-              <style type="text/css">
-                <![CDATA[
-                svg {
-                    cursor: default;
-                }
-                a.connector:hover {
-                    fill: red;
-                    stroke: yellowgreen;
-                    cursor: pointer;
-                }
-                ]]>
-            </style>
-
             <g transform="translate(0 0)" lucid:page-tab-id="0_0">
                 <path d="M0 0h1760v1360H0z" fill="#fff" />
                 <a xlink:href="{'id':'1', 'type':'header', 'parent':null, 'inputArrows':[], 'outputArrows':['a1','a2'] , 'href':'https://www.lucidchart.com'}"
