@@ -59,8 +59,9 @@ class ChartModel {
             element.classList.add('connector');
         } else if (type === 'header') {
             element.classList.add('header');
+        } else if (type === 'text') {
+            element.classList.add('link');
         }
-
     }
 
     addTransformAttributeToElement(element) {
@@ -87,12 +88,14 @@ class ChartModel {
     findNotAllElements(element) {
         const outputArrows = element && element.outputArrows;
 
-        if (outputArrows && outputArrows.length) {
-            const items = outputArrows.reduce((res, id) => res.concat(this.findElementsByIputArrowID(id)), []);
+        if (outputArrows.length) {
+            const items = outputArrows.reduce((res, id) => {
+                const el = this.findElementsByIputArrowID(id);
+                return res.concat(el)
+            }, []);
 
             const innerItems = items.reduce((result, currentElement) => {
-                const elements = (currentElement.type && currentElement.type !==
-                        'connector') ?
+                const elements = (currentElement.type && currentElement.type !== 'connector') ?
                     this.findNotAllElements(currentElement) : [];
                 return (elements.length > 0) ? result.concat(elements) : result;
             }, []);
@@ -147,19 +150,39 @@ class ChartModel {
     }
 
     partiallyDefineElementsWithLinkedArrows(elementsSet) {
-        const indentificators = elementsSet.map((a) => a.id);
+        const indentificators = elementsSet.reduce((res, element) => {
+            if (res.indexOf(element.id) === -1) {
+                res.push(element.id);
+            };
+            return res;
+        }, []);
         return indentificators.reduce((res, el) => {
             res.push(el);
-            res = res.concat(this._model[el].inputArrows, (this._model[el].isVisible ===
-                    false) ? [] :
+            //and necessary arrows
+            res = res.concat(this._model[el].inputArrows, (this._model[el].isVisible === false) ? [] :
                 this._model[el].outputArrows);
             return res;
         }, []);
     }
 
+    checkIfContains(outputConnectorArray, inputConnectorArray) {
+        for (let i = 0, len = outputConnectorArray.length; i < len; i++) {
+            if (inputConnectorArray.indexOf(outputConnectorArray[i]) === -1) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     showElements(connectorElementID) {
         const elementItems = this.findNotAllElements(this._model[connectorElementID]);
-        const arrowsAndElements = this.partiallyDefineElementsWithLinkedArrows(elementItems);
+        // const connectorOutputArrows = connectorElementID.outputArrows;
+        // let arrowsAndElements;
+        // if (elementItems.length === 1 && this.checkIfContains(connectorOutputArrows, elementItems[0].inputArrows)) {
+        //     arrowsAndElements = [elementItems.id].concat(connectorOutputArrows);
+        // } else {
+        let arrowsAndElements = this.partiallyDefineElementsWithLinkedArrows(elementItems);
+        // }
 
         arrowsAndElements.forEach(id => {
             if (this._model[id].type === 'connector') {
@@ -176,12 +199,14 @@ class ChartModel {
         let bodyElementId;
 
         for (let key in this._model) {
-            if (this._model[key].parentID === elementID) {
+            if (this._model[key].type === 'body' && this._model[key].parentID === elementID) {
                 bodyElementId = key;
                 break;
             };
         };
-
+        if (!bodyElementId) {
+            return;
+        }
         const bodyElement = this._model[bodyElementId];
         bodyElement.isExpanded = !bodyElement.isExpanded;
 
@@ -204,7 +229,7 @@ class ChartModel {
     }
 
     getHeightFromTransformAttribute(element) {
-        return parseFloat(element.getAttribute('transform').replace(/.*,\s?(-?\d+)\)$/, "$1"));
+        return parseFloat(element.getAttribute('transform').replace(/.*,\s?(-?\d+.?(\d+)?)\)/, "$1"));
     }
 
     findArrowsLinkedWithBody(elementID) {
@@ -221,7 +246,7 @@ class ChartModel {
     // }
 
     setHeightAttribute(dimensionData) {
-        const height = dimensionData.y - this.y + this.getHeightFromTransformAttribute(this._model[dimensionData.id].element);
+        const height = dimensionData.y - this.y;
         this.container.setAttribute('height', height);
         this.container.setAttribute('viewBox', `${this.x} ${this.y} ${this.x1 - this.x} ${height}`);
     }
@@ -236,8 +261,11 @@ class ChartModel {
         keys = keys.filter(id => this._model[id].element.getAttribute('display') !== 'none');
 
         const dimensionData = keys.reduce((res, id) => {
-            if (this._model[id].innerGeometryData.y1 > res.y) {
-                res.y = this._model[id].innerGeometryData.y1;
+            const el = this._model[id].element;
+            const h = this.getHeightFromTransformAttribute(el);
+
+            if (this._model[id].innerGeometryData.y1 + h > res.y) {
+                res.y = this._model[id].innerGeometryData.y1 + h;
                 res.id = id;
             };
             return res;
@@ -245,6 +273,18 @@ class ChartModel {
 
         this.setHeightAttribute(dimensionData);
     }
+
+    clickEventhandler(e) {
+        const id = e.currentTarget.dataset['id'];
+        if (id && this._model[id].type === 'connector') {
+            this._model[id].isVisible ? this.hideElements(id) : this.showElements(
+                id)
+            this._model[id].isVisible = !this._model[id].isVisible;
+        } else if (id && this._model[id].type === 'header') {
+            this.collapseOrExpandBody(id);
+        }
+        this.changeSVGDimensions();
+    };
 };
 
 const replaceQuotes = str => str.replace(/'/g, '"');
@@ -277,15 +317,7 @@ window.addEventListener('load', () => {
     // add event listenerslisteners
     elements.forEach(el => {
         el.addEventListener('click', e => {
-            const id = e.currentTarget.dataset['id'];
-            if (id && model._model[id].type === 'connector') {
-                model._model[id].isVisible ? model.hideElements(id) : model.showElements(
-                    id)
-                model._model[id].isVisible = !model._model[id].isVisible;
-            } else if (id && model._model[id].type === 'header') {
-                model.collapseOrExpandBody(id);
-            }
-            model.changeSVGDimensions();
+            model.clickEventhandler(e);
         });
     });
 });

@@ -3,14 +3,16 @@ svg {
 }
 
 a.connector,
-a.header {
+a.header,
+a.link {
     fill-opacity: 0.7;
     cursor: pointer;
 }
 
 a.connector:hover,
-a.header:hover {
+a.header:hover,
+a.link {
     fill-opacity: 1;
-    fill:blue;
+    fill: blue;
     transition: 0.3s;
 }
