@@ -45,13 +45,26 @@ class ChartModel {
                 data.innerGeometryData.x1 > this.x1 ? data.innerGeometryData.x1 : this.x1 :
                 data.innerGeometryData.x1;
 
-            that._model[data.id] = data;
-            if (data.type === 'connector') {
-                element.classList.add('connector');
-            }
+            this._model[data.id] = data;
+            this.addClassToElement(element, data.type);
+            this.addTransformAttributeToElement(element);
+
         } catch (err) {
             console.log(err);
         }
+    }
+
+    addClassToElement(element, type) {
+        if (type === 'connector') {
+            element.classList.add('connector');
+        } else if (type === 'header') {
+            element.classList.add('header');
+        }
+
+    }
+
+    addTransformAttributeToElement(element) {
+        element.setAttribute('transform', 'translate(0,0)');
     }
 
     findAllElements(element) {
@@ -90,10 +103,14 @@ class ChartModel {
     }
 
     defineElementsWithLinkedArrows(elementsSet) {
-        const indentificators = elementsSet.map((a) => a.id);
-        return indentificators.reduce((res, el) => {
-            res.push(el);
-            res = res.concat(this._model[el].inputArrows, this._model[el].outputArrows);
+        const indentificators = elementsSet.map(a => a.id);
+        return indentificators.reduce((res, id) => {
+            const arr = [].concat(id, this._model[id].inputArrows, this._model[id].outputArrows);
+            for (let i = 0; i < arr.length; i++) {
+                if (res.indexOf(arr[i]) === -1) {
+                    res.push(arr[i]);
+                }
+            }
             return res;
         }, []);
     }
@@ -148,12 +165,14 @@ class ChartModel {
             if (this._model[id].type === 'connector') {
                 this._model[id].isVisible = false;
             };
+            if (this._model[id].type === 'body' && !this._model[id].isExpanded) {
+                return;
+            }
             this._model[id].element.setAttribute('display', 'block');
         });
     }
 
     collapseOrExpandBody(elementID) {
-        // console.log(this._model[elementID].isExpanded ? elementID + 'collapsed' : elementID + 'expanded');
         let bodyElementId;
 
         for (let key in this._model) {
@@ -164,17 +183,28 @@ class ChartModel {
         };
 
         const bodyElement = this._model[bodyElementId];
+        bodyElement.isExpanded = !bodyElement.isExpanded;
 
-        // console.log(this.findArrowsLinkedWithBody(bodyElementId));
         const elementsArray = this.findAllElements(this._model[bodyElementId]);
         const arrowsAndElements = this.defineElementsWithLinkedArrows(elementsArray);
+
         if (bodyElement.element.getAttribute('display') !== 'none') {
             bodyElement.element.setAttribute('display', 'none');
-            arrowsAndElements.forEach(el => this._model[el].element.setAttribute('transform', `translate(0,-${bodyElement.innerGeometryData.height})`));
+            arrowsAndElements.forEach(id => {
+                const el = this._model[id].element;
+                el.setAttribute('transform', `translate(0, ${this.getHeightFromTransformAttribute(el) - bodyElement.innerGeometryData.height})`);
+            });
         } else {
             bodyElement.element.setAttribute('display', 'block');
-            arrowsAndElements.forEach(el => this._model[el].element.removeAttribute('transform'));
+            arrowsAndElements.forEach(id => {
+                const el = this._model[id].element;
+                el.setAttribute('transform', `translate(0, ${this.getHeightFromTransformAttribute(el) + bodyElement.innerGeometryData.height})`);
+            });
         }
+    }
+
+    getHeightFromTransformAttribute(element) {
+        return parseFloat(element.getAttribute('transform').replace(/.*,\s?(-?\d+)\)$/, "$1"));
     }
 
     findArrowsLinkedWithBody(elementID) {
@@ -190,23 +220,30 @@ class ChartModel {
     //     return (arrowDimensions.height >= arrowDimensions.width) ? true : false;
     // }
 
-    setHeightAttribute(coord_y) {
-        const height = coord_y - this.y;
+    setHeightAttribute(dimensionData) {
+        const height = dimensionData.y - this.y + this.getHeightFromTransformAttribute(this._model[dimensionData.id].element);
         this.container.setAttribute('height', height);
         this.container.setAttribute('viewBox', `${this.x} ${this.y} ${this.x1 - this.x} ${height}`);
     }
 
     changeSVGDimensions() {
+        const heightAndElementData = {
+            y: 0,
+            id: ''
+        };
+
         let keys = Object.keys(this._model);
         keys = keys.filter(id => this._model[id].element.getAttribute('display') !== 'none');
 
-        const coord_y = keys.reduce((coord, id) => {
-            if (this._model[id].innerGeometryData.y1 > coord) {
-                coord = this._model[id].innerGeometryData.y1;
+        const dimensionData = keys.reduce((res, id) => {
+            if (this._model[id].innerGeometryData.y1 > res.y) {
+                res.y = this._model[id].innerGeometryData.y1;
+                res.id = id;
             };
-            return coord;
-        }, 0);
-        this.setHeightAttribute(coord_y);
+            return res;
+        }, heightAndElementData);
+
+        this.setHeightAttribute(dimensionData);
     }
 };
 

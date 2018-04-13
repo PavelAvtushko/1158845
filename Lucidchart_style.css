@@ -2,8 +2,15 @@ svg {
     cursor: default;
 }
 
-a.connector:hover {
-    fill: red;
-    stroke: yellowgreen;
+a.connector,
+a.header {
+    fill-opacity: 0.7;
     cursor: pointer;
+}
+
+a.connector:hover,
+a.header:hover {
+    fill-opacity: 1;
+    fill:blue;
+    transition: 0.3s;
 }
