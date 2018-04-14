@@ -11,7 +11,7 @@ a.link {
 
 a.connector:hover,
 a.header:hover,
-a.link {
+a.link:hover {
     fill-opacity: 1;
     fill: blue;
     transition: 0.3s;

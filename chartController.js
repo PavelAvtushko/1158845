@@ -1,6 +1,7 @@
 class ChartModel {
     constructor(container) {
         this._model = {};
+        this._arrows = {};
         this.container = container;
         this.x;
         this.y;
@@ -24,15 +25,32 @@ class ChartModel {
         let data;
         try {
             data = JSON.parse(elementData);
-            element.setAttribute('xlink:href', data.href || 'javascript:void(0);');
+            this.defineChartDimension(element, data);
             element.dataset['initInfo'] = elementData;
-            element.dataset['id'] = data.id;
+            if (data.href) {
+                element.setAttribute('xlink:href', data.href);
+            } else {
+                element.removeAttribute('xlink:href');
+            }
+            if (data.id) {
+                element.dataset['id'] = data.id;
+            }
             data.element = element;
+            this._model[data.id] = data;
+            this.addClassToElement(element, data.type);
+            this.addTransformAttributeToElement(element);
+            this.defineBlocksLinkedWithArrows(data);
+        } catch (err) {
+            console.log(err);
+        }
+    }
 
-            // data.DOMgeometry = element.getBoundingClientRect();
-            data.innerGeometryData = element.getBBox();
-            data.innerGeometryData.x1 = data.innerGeometryData.x + data.innerGeometryData.width;
-            data.innerGeometryData.y1 = data.innerGeometryData.y + data.innerGeometryData.height;
+    defineChartDimension(element, data) {
+        data.innerGeometryData = element.getBBox();
+        data.innerGeometryData.x1 = data.innerGeometryData.x + data.innerGeometryData.width;
+        data.innerGeometryData.y1 = data.innerGeometryData.y + data.innerGeometryData.height;
+
+        if (data.id) {
             this.x = this.x ?
                 data.innerGeometryData.x < this.x ? data.innerGeometryData.x : this.x :
                 data.innerGeometryData.x;
@@ -44,23 +62,48 @@ class ChartModel {
             this.x1 = this.x1 ?
                 data.innerGeometryData.x1 > this.x1 ? data.innerGeometryData.x1 : this.x1 :
                 data.innerGeometryData.x1;
+        }
+    }
 
-            this._model[data.id] = data;
-            this.addClassToElement(element, data.type);
-            this.addTransformAttributeToElement(element);
-
-        } catch (err) {
-            console.log(err);
+    defineBlocksLinkedWithArrows(elementData) {
+        if (elementData.outputArrows && elementData.outputArrows.length) {
+            elementData.outputArrows.forEach(arrowID => {
+                if (this._arrows[arrowID]) {
+                    this._arrows[arrowID].startPoint = elementData.id
+                } else {
+                    this._arrows[arrowID] = {
+                        startPoint: elementData.id
+                    };
+                };
+            });
+        }
+        if (elementData.inputArrows && elementData.inputArrows.length) {
+            elementData.inputArrows.forEach(arrowID => {
+                if (this._arrows[arrowID]) {
+                    this._arrows[arrowID].endPoint = elementData.id
+                } else {
+                    this._arrows[arrowID] = {
+                        endPoint: elementData.id
+                    };
+                };
+            });
         }
     }
 
     addClassToElement(element, type) {
-        if (type === 'connector') {
-            element.classList.add('connector');
-        } else if (type === 'header') {
-            element.classList.add('header');
-        } else if (type === 'text') {
-            element.classList.add('link');
+        switch (type) {
+            case 'connector':
+                element.classList.add('connector');
+                break;
+            case 'header':
+                element.classList.add('header');
+                break;
+            case 'text':
+                element.classList.add('link');
+                break;
+            case 'infoBlock':
+                element.classList.add('link');
+                break;
         }
     }
 
@@ -68,164 +111,110 @@ class ChartModel {
         element.setAttribute('transform', 'translate(0,0)');
     }
 
-    findAllElements(element) {
-        const outputArrows = element.outputArrows;
+    findElements(connectorElementID) {
+        const connector = this._model[connectorElementID];
+        const elements = {};
+        elements[connectorElementID] = connector.outputArrows;
 
-        if (outputArrows.length) {
-            const items = outputArrows.reduce((res, id) => res.concat(this.findElementsByIputArrowID(id)), []);
+        if (connector.outputArrows.length) {
+            const nextElementID = this._arrows[connector.outputArrows[0]].endPoint;
+            let arr = [].concat(connector.outputArrows, this._model[nextElementID].outputArrows);
 
-            const innerItems = items.reduce((result, currentElement) => {
-                const elements = this.findAllElements(currentElement);
-                return (elements.length > 0) ? result.concat(elements) : result;
-            }, []);
-
-            return items.concat(innerItems);
-        };
-        return [];
-    }
-
-    // find elements not all
-    findNotAllElements(element) {
-        const outputArrows = element && element.outputArrows;
-
-        if (outputArrows.length) {
-            const items = outputArrows.reduce((res, id) => {
-                const el = this.findElementsByIputArrowID(id);
-                return res.concat(el)
-            }, []);
-
-            const innerItems = items.reduce((result, currentElement) => {
-                const elements = (currentElement.type && currentElement.type !== 'connector') ?
-                    this.findNotAllElements(currentElement) : [];
-                return (elements.length > 0) ? result.concat(elements) : result;
-            }, []);
-
-            return items.concat(innerItems);
-        };
-        return [];
-    }
-
-    defineElementsWithLinkedArrows(elementsSet) {
-        const indentificators = elementsSet.map(a => a.id);
-        return indentificators.reduce((res, id) => {
-            const arr = [].concat(id, this._model[id].inputArrows, this._model[id].outputArrows);
             for (let i = 0; i < arr.length; i++) {
-                if (res.indexOf(arr[i]) === -1) {
-                    res.push(arr[i]);
+                const nextElementID = this._arrows[arr[i]].endPoint;
+                if (!elements[nextElementID]) {
+                    if (this._model[nextElementID].type !== 'connector') {
+                        elements[nextElementID] = this._model[nextElementID].outputArrows;
+                        arr = arr.concat(this._model[nextElementID].outputArrows);
+                        if (this._model[nextElementID].children) {
+                            this._model[nextElementID].children.forEach(id => elements[id] = []);
+                        }
+                    } else {
+                        elements[nextElementID] = [];
+                    }
                 }
             }
-            return res;
-        }, []);
-    }
-
-    findElementsByArrowID(arrowID, isInput) {
-        let result = [];
-        for (let key in this._model) {
-            const arrows = isInput ? this._model[key].inputArrows : this._model[key].outputArrows;
-            if (arrows && arrows.indexOf(arrowID) > -1) {
-                result.push(this._model[key]);
-            };
-        };
-        return result;
-    }
-
-    findElementsByIputArrowID(arrowID) {
-        return this.findElementsByArrowID(arrowID, true);
-    }
-
-    findElementsByOutputArrowID(arrowID) {
-        return this.findElementsByArrowID(arrowID, false);
+        }
+        return elements;
     }
 
     hideElements(connectorElementID) {
-        const elementItems = this.findAllElements(this._model[connectorElementID]);
-        const arrowsAndElements = this.defineElementsWithLinkedArrows(elementItems);
-
-        arrowsAndElements.forEach(id => {
-            if (this._model[id].type === 'connector') {
-                this._model[id].isVisible = false;
-            };
-            this._model[id].element.setAttribute('display', 'none');
-        });
-    }
-
-    partiallyDefineElementsWithLinkedArrows(elementsSet) {
-        const indentificators = elementsSet.reduce((res, element) => {
-            if (res.indexOf(element.id) === -1) {
-                res.push(element.id);
-            };
-            return res;
-        }, []);
-        return indentificators.reduce((res, el) => {
-            res.push(el);
-            //and necessary arrows
-            res = res.concat(this._model[el].inputArrows, (this._model[el].isVisible === false) ? [] :
-                this._model[el].outputArrows);
-            return res;
-        }, []);
-    }
-
-    checkIfContains(outputConnectorArray, inputConnectorArray) {
-        for (let i = 0, len = outputConnectorArray.length; i < len; i++) {
-            if (inputConnectorArray.indexOf(outputConnectorArray[i]) === -1) {
-                return false;
+        const hideElements = this.findElements(connectorElementID);
+        for (let id in hideElements) {
+            if (id !== connectorElementID) {
+                this._model[id].element.setAttribute('display', 'none');
             }
+            hideElements[id].forEach(arrow => this._model[arrow].element.setAttribute('display', 'none'));
         }
-        return true;
     }
 
     showElements(connectorElementID) {
-        const elementItems = this.findNotAllElements(this._model[connectorElementID]);
-        // const connectorOutputArrows = connectorElementID.outputArrows;
-        // let arrowsAndElements;
-        // if (elementItems.length === 1 && this.checkIfContains(connectorOutputArrows, elementItems[0].inputArrows)) {
-        //     arrowsAndElements = [elementItems.id].concat(connectorOutputArrows);
-        // } else {
-        let arrowsAndElements = this.partiallyDefineElementsWithLinkedArrows(elementItems);
-        // }
-
-        arrowsAndElements.forEach(id => {
-            if (this._model[id].type === 'connector') {
-                this._model[id].isVisible = false;
-            };
-            if (this._model[id].type === 'body' && !this._model[id].isExpanded) {
-                return;
-            }
+        const showElements = this.findElements(connectorElementID);
+        for (let id in showElements) {
             this._model[id].element.setAttribute('display', 'block');
-        });
+            showElements[id].forEach(arrow => this._model[arrow].element.setAttribute('display', 'block'));
+        }
     }
 
-    collapseOrExpandBody(elementID) {
-        let bodyElementId;
+    findElementsByRootElement(elementID) {
+        const header = this._model[elementID];
+        const elements = {};
+        elements[elementID] = header.outputArrows;
 
-        for (let key in this._model) {
-            if (this._model[key].type === 'body' && this._model[key].parentID === elementID) {
-                bodyElementId = key;
-                break;
-            };
-        };
-        if (!bodyElementId) {
-            return;
+        if (elements[elementID].length) {
+            let arr = elements[elementID];
+            for (let i = 0; i < arr.length; i++) {
+                const nextElementID = this._arrows[arr[i]].endPoint;
+                if (!elements[nextElementID]) {
+                    elements[nextElementID] = this._model[nextElementID].outputArrows;
+                    arr = arr.concat(this._model[nextElementID].outputArrows);
+
+                    if (this._model[nextElementID].children) {
+                        this._model[nextElementID].children.forEach(id => elements[id] = []);
+                    }
+                }
+            }
         }
-        const bodyElement = this._model[bodyElementId];
-        bodyElement.isExpanded = !bodyElement.isExpanded;
+        return elements;
+    }
 
-        const elementsArray = this.findAllElements(this._model[bodyElementId]);
-        const arrowsAndElements = this.defineElementsWithLinkedArrows(elementsArray);
+    collapseOrExpandBody(headerID) {
+        const childrenElements = this._model[headerID].children;
 
-        if (bodyElement.element.getAttribute('display') !== 'none') {
-            bodyElement.element.setAttribute('display', 'none');
-            arrowsAndElements.forEach(id => {
-                const el = this._model[id].element;
-                el.setAttribute('transform', `translate(0, ${this.getHeightFromTransformAttribute(el) - bodyElement.innerGeometryData.height})`);
-            });
-        } else {
-            bodyElement.element.setAttribute('display', 'block');
-            arrowsAndElements.forEach(id => {
-                const el = this._model[id].element;
-                el.setAttribute('transform', `translate(0, ${this.getHeightFromTransformAttribute(el) + bodyElement.innerGeometryData.height})`);
+        if (childrenElements && childrenElements.length) {
+            childrenElements.forEach(childID => {
+                if (this._model[childID].type !== 'body') {
+                    return;
+                }
+                this._model[childID].isExpanded = !this._model[childID].isExpanded;
+                const elementsBellow = this.findElementsByRootElement(headerID);
+
+                if (this._model[childID].element.getAttribute('display') !== 'none') {
+                    this._model[childID].element.setAttribute('display', 'none');
+                    for (let id in elementsBellow) {
+                        if (id !== headerID) {
+                            this._model[id].element.setAttribute('transform', `translate(0, ${this.getHeightFromTransformAttribute(this._model[id].element) - this._model[childID].innerGeometryData.height})`);
+                        }
+                        elementsBellow[id].forEach(arrow => {
+                            const el = this._model[arrow].element;
+                            el.setAttribute('transform', `translate(0, ${this.getHeightFromTransformAttribute(el) - this._model[childID].innerGeometryData.height})`);
+                        });
+                    }
+                } else {
+                    this._model[childID].element.setAttribute('display', 'block');
+                    for (let id in elementsBellow) {
+                        if (id !== headerID) {
+                            this._model[id].element.setAttribute('transform', `translate(0, ${this.getHeightFromTransformAttribute(this._model[id].element) + this._model[childID].innerGeometryData.height})`);
+                        }
+                        elementsBellow[id].forEach(arrow => {
+                            const el = this._model[arrow].element;
+                            el.setAttribute('transform', `translate(0, ${this.getHeightFromTransformAttribute(el) + this._model[childID].innerGeometryData.height})`);
+                        });
+                    }
+                }
             });
         }
+
     }
 
     getHeightFromTransformAttribute(element) {
@@ -239,11 +228,6 @@ class ChartModel {
         })
         return arrows;
     }
-
-    // isArrowVertical(arrowID) {
-    //     const arrowDimensions = this._model[arrowID].element.getBBox();
-    //     return (arrowDimensions.height >= arrowDimensions.width) ? true : false;
-    // }
 
     setHeightAttribute(dimensionData) {
         const height = dimensionData.y - this.y;
@@ -276,12 +260,16 @@ class ChartModel {
 
     clickEventhandler(e) {
         const id = e.currentTarget.dataset['id'];
-        if (id && this._model[id].type === 'connector') {
-            this._model[id].isVisible ? this.hideElements(id) : this.showElements(
-                id)
+        if (id && this._model[id].type === 'connector' && !this._model[id].isVisible) {
+            this.showElements(id);
             this._model[id].isVisible = !this._model[id].isVisible;
         } else if (id && this._model[id].type === 'header') {
             this.collapseOrExpandBody(id);
+        } else {
+            const href = e.currentTarget.getAttribute('xlink:href');
+            if (href) {
+                window.open(href);
+            }
         }
         this.changeSVGDimensions();
     };
@@ -312,11 +300,12 @@ window.addEventListener('load', () => {
     model.init();
 
     // disable links
-    container.addEventListener('click', e => e.preventDefault());
+    //container.addEventListener('click', e => e.preventDefault());
 
     // add event listenerslisteners
     elements.forEach(el => {
         el.addEventListener('click', e => {
+            e.preventDefault();
             model.clickEventhandler(e);
         });
     });
