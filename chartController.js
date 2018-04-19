@@ -37,6 +37,15 @@ class ChartModel {
             }
             data.element = element;
             this._model[data.id] = data;
+
+            // additional properties
+            if (data.type === 'connector') {
+                this._model[data.id].isVisible = false;
+            }
+            else if (data.type === 'body') {
+                this._model[data.id].isExpanded = true;
+            }
+
             this.addClassToElement(element, data.type);
             this.addTransformAttributeToElement(element);
             this.defineBlocksLinkedWithArrows(data);
