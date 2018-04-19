@@ -24,7 +24,7 @@ class ChartModel {
         const that = this;
         let data;
         try {
-            data = JSON.parse(elementData);
+            data = JSON.parse(elementData.replace('#sub-address', ''));
             this.defineChartDimension(element, data);
             element.dataset['initInfo'] = elementData;
             if (data.href) {
@@ -190,6 +190,8 @@ class ChartModel {
                 const elementsBellow = this.findElementsByRootElement(headerID);
 
                 if (this._model[childID].element.getAttribute('display') !== 'none') {
+                    this._model[childID].children && this._model[childID].children.forEach(childID => this._model[childID].element.setAttribute('display', 'none'));
+
                     this._model[childID].element.setAttribute('display', 'none');
                     for (let id in elementsBellow) {
                         if (id !== headerID) {
@@ -201,6 +203,7 @@ class ChartModel {
                         });
                     }
                 } else {
+                    this._model[childID].children && this._model[childID].children.forEach(childID => this._model[childID].element.setAttribute('display', 'block'));
                     this._model[childID].element.setAttribute('display', 'block');
                     for (let id in elementsBellow) {
                         if (id !== headerID) {
@@ -277,36 +280,59 @@ class ChartModel {
 
 const replaceQuotes = str => str.replace(/'/g, '"');
 
-const SVG = document.getElementById('SVG_Object');
+const lucid_SVG = document.getElementById('SVG_Lucid');
+const visio_SVG = document.getElementById('SVG_Visio');
 
 window.addEventListener('load', () => {
 
-    const container = SVG.getSVGDocument().querySelector('svg');
+    const lucid_container = lucid_SVG.getSVGDocument().querySelector('svg');
+    const visio_container = visio_SVG.getSVGDocument().querySelector('svg');
 
     // add stylesheet to XML dynamicaly: file name: "Lucidchart_style.css" 
-    const xs = SVG.getSVGDocument().createProcessingInstruction(
-        "xml-stylesheet", 'href="Lucidchart_style.css" type="text/css"');
-    SVG.getSVGDocument().insertBefore(xs, SVG.getSVGDocument().rootElement);
+    const lucid_style = lucid_SVG.getSVGDocument().createProcessingInstruction(
+        "xml-stylesheet", 'href="chart_style.css" type="text/css"');
+    lucid_SVG.getSVGDocument().insertBefore(lucid_style, lucid_SVG.getSVGDocument().rootElement);
 
-    const model = new ChartModel(container);
+    const visio_style = visio_SVG.getSVGDocument().createProcessingInstruction(
+        "xml-stylesheet", 'href="chart_style.css" type="text/css"');
+    visio_SVG.getSVGDocument().insertBefore(visio_style, visio_SVG.getSVGDocument().rootElement);
 
-    const parseData = element => {
+    const lucid_model = new ChartModel(lucid_container);
+    const visio_model = new ChartModel(visio_container);
+
+    const lucid_parseData = element => {
         const elementData = replaceQuotes(element.getAttribute('xlink:href'));
-        model.addNewItem(elementData, element);
+        lucid_model.addNewItem(elementData, element);
     };
 
-    const elements = Array.from(container.querySelectorAll('a'));
-    const parsedElements = elements.map(parseData);
-    model.init();
+    const visio_parseData = element => {
+        const elementData = replaceQuotes(element.getAttribute('xlink:href'));
+        visio_model.addNewItem(elementData, element);
+    };
 
+    const lucid_elements = Array.from(lucid_container.querySelectorAll('a'));
+    lucid_elements.forEach(lucid_parseData);
+
+    const visio_elements = Array.from(visio_container.querySelectorAll('a'));
+    visio_elements.forEach(visio_parseData);
+
+    lucid_model.init();
+    visio_model.init();
     // disable links
     //container.addEventListener('click', e => e.preventDefault());
 
     // add event listenerslisteners
-    elements.forEach(el => {
+    lucid_elements.forEach(el => {
         el.addEventListener('click', e => {
             e.preventDefault();
-            model.clickEventhandler(e);
+            lucid_model.clickEventhandler(e);
         });
     });
+    visio_elements.forEach(el => {
+        el.addEventListener('click', e => {
+            e.preventDefault();
+            visio_model.clickEventhandler(e);
+        });
+    });
+
 });
