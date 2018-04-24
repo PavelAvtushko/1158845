@@ -1,0 +1,18 @@
+svg {
+    cursor: default;
+}
+
+a.connector,
+a.header,
+a.link {
+    fill-opacity: 0.7;
+    cursor: pointer;
+}
+
+a.connector:hover,
+a.header:hover,
+a.link:hover {
+    fill-opacity: 1;
+    fill: blue;
+    transition: 0.3s;
+}
