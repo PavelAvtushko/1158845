@@ -363,74 +363,27 @@ class ChartModel {
 
 const replaceQuotes = str => str.replace(/'/g, '"');
 
-<<<<<<< HEAD
-=======
-// const lucid_SVG = document.getElementById('SVG_Lucid');
->>>>>>> 30a411c624fb3e3b53f20b1c638fdc48fe82f752
 const visio_SVG = document.getElementById('SVG_Visio');
 
 window.addEventListener('load', () => {
 
-<<<<<<< HEAD
     const visio_container = visio_SVG.getSVGDocument().querySelector('svg');
 
     // add stylesheet to XML dynamicaly: file name: "Lucidchart_style.css" 
-=======
-    // const lucid_container = lucid_SVG.getSVGDocument().querySelector('svg');
-    const visio_container = visio_SVG.getSVGDocument().querySelector('svg');
-
-    // add stylesheet to XML dynamicaly: file name: "Lucidchart_style.css" 
-    // const lucid_style = lucid_SVG.getSVGDocument().createProcessingInstruction(
-    //     "xml-stylesheet", 'href="chart_style.css" type="text/css"');
-    // lucid_SVG.getSVGDocument().insertBefore(lucid_style, lucid_SVG.getSVGDocument().rootElement);
-
->>>>>>> 30a411c624fb3e3b53f20b1c638fdc48fe82f752
     const visio_style = visio_SVG.getSVGDocument().createProcessingInstruction(
         "xml-stylesheet", 'href="chart_style.css" type="text/css"');
     visio_SVG.getSVGDocument().insertBefore(visio_style, visio_SVG.getSVGDocument().rootElement);
 
-<<<<<<< HEAD
     const visio_model = new ChartModel(visio_container);
-=======
-    // const lucid_model = new ChartModel(lucid_container);
-    const visio_model = new ChartModel(visio_container);
-
-    // const lucid_parseData = element => {
-    //     const elementData = replaceQuotes(element.getAttribute('xlink:href'));
-    //     lucid_model.addNewItem(elementData, element);
-    // };
-
->>>>>>> 30a411c624fb3e3b53f20b1c638fdc48fe82f752
     const visio_parseData = element => {
         const elementTitleData = replaceQuotes(element.getAttribute('xlink:title'));
         const elementHrefData = replaceQuotes(element.getAttribute('xlink:href'));
         visio_model.addNewItem(element, elementTitleData, elementHrefData);
     };
-<<<<<<< HEAD
     const visio_elements = Array.from(visio_container.querySelectorAll('a'));
     visio_elements.forEach(visio_parseData);
-=======
-
-    // const lucid_elements = Array.from(lucid_container.querySelectorAll('a'));
-    // lucid_elements.forEach(lucid_parseData);
-
-    const visio_elements = Array.from(visio_container.querySelectorAll('a'));
-    visio_elements.forEach(visio_parseData);
-
-    // lucid_model.init();
->>>>>>> 30a411c624fb3e3b53f20b1c638fdc48fe82f752
     visio_model.init();
 
-<<<<<<< HEAD
-=======
-    // add event listenerslisteners
-    // lucid_elements.forEach(el => {
-    //     el.addEventListener('click', e => {
-    //         e.preventDefault();
-    //         lucid_model.clickEventhandler(e);
-    //     });
-    // });
->>>>>>> 30a411c624fb3e3b53f20b1c638fdc48fe82f752
     visio_elements.forEach(el => {
         el.addEventListener('click', e => {
             e.preventDefault();

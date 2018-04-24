@@ -15,13 +15,8 @@ body {
 }
 
 #SVG-container > object {
-<<<<<<< HEAD
     width: 48%;
     margin: 1%;
-=======
-    width: 90%;
-    margin: 1% 1%;
->>>>>>> 30a411c624fb3e3b53f20b1c638fdc48fe82f752
     font-size: 0;
     border: 1px solid orange;
     box-sizing: border-box;
