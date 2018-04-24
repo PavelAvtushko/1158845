@@ -2,7 +2,6 @@ class ChartModel {
     constructor(container) {
         this._model = {};
         this._arrows = {};
-        this._bodyLinks = {};
         this.container = container;
         this.x;
         this.y;
@@ -10,7 +9,6 @@ class ChartModel {
     }
 
     init() {
-        this.defineBodyDependenciesAndUpdateModel();
         this.hideAllElementsAfterConnectors();
         this.container.setAttribute('width', this.x1 - this.x);
         this.changeSVGDimensions();
@@ -22,22 +20,18 @@ class ChartModel {
         keys.forEach(id => this.hideElements(id));
     }
 
-    addNewItem(element, elementTitleData, elementHrefData) {
+    addNewItem(elementData, element) {
+        const that = this;
         let data;
-        elementTitleData = '{' + elementTitleData + '}';
         try {
-            data = JSON.parse(elementTitleData);
-            this.restructureArrowsData(data);
-            this.defineTypeOfElement(data, elementHrefData);
-            this.setBodyElementLinks(data);
+            data = JSON.parse(elementData.replace('#sub-address', ''));
             this.defineChartDimension(element, data);
-
+            element.dataset['initInfo'] = elementData;
             if (data.href) {
                 element.setAttribute('xlink:href', data.href);
             } else {
                 element.removeAttribute('xlink:href');
             }
-
             if (data.id) {
                 element.dataset['id'] = data.id;
             }
@@ -47,7 +41,8 @@ class ChartModel {
             // additional properties
             if (data.type === 'connector') {
                 this._model[data.id].isVisible = false;
-            } else if (data.type === 'body') {
+            }
+            else if (data.type === 'body') {
                 this._model[data.id].isExpanded = true;
             }
 
@@ -59,80 +54,11 @@ class ChartModel {
         }
     }
 
-    setBodyElementLinks(data) {
-        if (data.type === 'body') {
-            this._bodyLinks[data.id] = [].concat(data.outputArrows, data.inputArrows);
-        };
-    }
-
-    defineBodyDependenciesAndUpdateModel() {
-        Object.keys(this._bodyLinks).forEach(bodyID => {
-            this._bodyLinks[bodyID].forEach(arrowID => {
-                const endPointID = this._arrows[arrowID].endPoint;
-
-                if (this._model[endPointID].type === 'link') {
-
-                    this._model[bodyID].children.push(endPointID);
-                    const index = this._model[bodyID].outputArrows.indexOf(arrowID);
-                    this._model[bodyID].outputArrows.splice(index, 1);
-
-                    const indexForheader = this._model[endPointID].inputArrows.indexOf(arrowID);
-                    this._model[endPointID].inputArrows.splice(indexForheader, 1);
-
-                    this._model[arrowID].element.setAttribute('display', 'none');
-                }
-            })
-            this._bodyLinks[bodyID].forEach(arrowID => {
-                const startPointID = this._arrows[arrowID].startPoint;
-
-                if (this._model[startPointID].type === 'header') {
-
-                    this._model[startPointID].children.push(bodyID);
-                    this._model[bodyID].parentID = startPointID;
-
-                    this._model[bodyID].outputArrows.forEach(id => {
-                        this._model[startPointID].outputArrows.push(id);
-                        this._arrows[id].startPoint = startPointID;
-                    });
-
-                    const indexForheader = this._model[startPointID].outputArrows.indexOf(arrowID);
-                    this._model[startPointID].outputArrows.splice(indexForheader, 1);
-
-                    const indexForbody = this._model[bodyID].outputArrows.indexOf(arrowID);
-                    this._model[bodyID].outputArrows.splice(indexForbody, 1);
-
-                    this._model[arrowID].element.setAttribute('display', 'none');
-                }
-            })
-        })
-    }
-
-    restructureArrowsData(data) {
-        if (data.inputArrows || data.outputArrows) {
-            data.inputArrows = data.inputArrows ? data.inputArrows.trim().split(' ') : [];
-            data.outputArrows = data.outputArrows ? data.outputArrows.trim().split(' ') : [];
-        }
-    }
-
-    defineTypeOfElement(data, elementHrefData) {
-        elementHrefData = elementHrefData.trim();
-        const separatorPosition = elementHrefData.lastIndexOf('#');
-        if (elementHrefData && separatorPosition > -1) {
-            data.type = elementHrefData.slice(separatorPosition + 1);
-            data.href = elementHrefData.slice(0, separatorPosition);
-        }
-        if (data.type === 'body' || data.type === 'header') {
-            data.children = [];
-        }
-    }
-
     defineChartDimension(element, data) {
         data.innerGeometryData = element.getBBox();
         data.innerGeometryData.x1 = data.innerGeometryData.x + data.innerGeometryData.width;
         data.innerGeometryData.y1 = data.innerGeometryData.y + data.innerGeometryData.height;
-        if (data.innerGeometryData.x === 0 || data.innerGeometryData.y === 0) {
-            return;
-        }
+
         if (data.id) {
             this.x = this.x ?
                 data.innerGeometryData.x < this.x ? data.innerGeometryData.x : this.x :
@@ -181,7 +107,7 @@ class ChartModel {
             case 'header':
                 element.classList.add('header');
                 break;
-            case 'link':
+            case 'text':
                 element.classList.add('link');
                 break;
             case 'infoBlock':
@@ -209,8 +135,8 @@ class ChartModel {
                     if (this._model[nextElementID].type !== 'connector') {
                         elements[nextElementID] = this._model[nextElementID].outputArrows;
                         arr = arr.concat(this._model[nextElementID].outputArrows);
-                        if (this._model[nextElementID].children && this._model[nextElementID].children.length) {
-                            this._model[nextElementID].children.forEach(id => elements[id] = this._model[id].children ? this._model[id].children : []);
+                        if (this._model[nextElementID].children) {
+                            this._model[nextElementID].children.forEach(id => elements[id] = []);
                         }
                     } else {
                         elements[nextElementID] = [];
@@ -253,7 +179,7 @@ class ChartModel {
                     arr = arr.concat(this._model[nextElementID].outputArrows);
 
                     if (this._model[nextElementID].children) {
-                        this._model[nextElementID].children.forEach(id => elements[id] = this._model[id].children ? this._model[id].children : []);
+                        this._model[nextElementID].children.forEach(id => elements[id] = []);
                     }
                 }
             }
@@ -363,55 +289,54 @@ class ChartModel {
 
 const replaceQuotes = str => str.replace(/'/g, '"');
 
-// const lucid_SVG = document.getElementById('SVG_Lucid');
+const lucid_SVG = document.getElementById('SVG_Lucid');
 const visio_SVG = document.getElementById('SVG_Visio');
 
 window.addEventListener('load', () => {
 
-    // const lucid_container = lucid_SVG.getSVGDocument().querySelector('svg');
+    const lucid_container = lucid_SVG.getSVGDocument().querySelector('svg');
     const visio_container = visio_SVG.getSVGDocument().querySelector('svg');
 
     // add stylesheet to XML dynamicaly: file name: "Lucidchart_style.css" 
-    // const lucid_style = lucid_SVG.getSVGDocument().createProcessingInstruction(
-    //     "xml-stylesheet", 'href="chart_style.css" type="text/css"');
-    // lucid_SVG.getSVGDocument().insertBefore(lucid_style, lucid_SVG.getSVGDocument().rootElement);
+    const lucid_style = lucid_SVG.getSVGDocument().createProcessingInstruction(
+        "xml-stylesheet", 'href="chart_style.css" type="text/css"');
+    lucid_SVG.getSVGDocument().insertBefore(lucid_style, lucid_SVG.getSVGDocument().rootElement);
 
     const visio_style = visio_SVG.getSVGDocument().createProcessingInstruction(
         "xml-stylesheet", 'href="chart_style.css" type="text/css"');
     visio_SVG.getSVGDocument().insertBefore(visio_style, visio_SVG.getSVGDocument().rootElement);
 
-    // const lucid_model = new ChartModel(lucid_container);
+    const lucid_model = new ChartModel(lucid_container);
     const visio_model = new ChartModel(visio_container);
 
-    // const lucid_parseData = element => {
-    //     const elementData = replaceQuotes(element.getAttribute('xlink:href'));
-    //     lucid_model.addNewItem(elementData, element);
-    // };
-
-    const visio_parseData = element => {
-        const elementTitleData = replaceQuotes(element.getAttribute('xlink:title'));
-        const elementHrefData = replaceQuotes(element.getAttribute('xlink:href'));
-        visio_model.addNewItem(element, elementTitleData, elementHrefData);
+    const lucid_parseData = element => {
+        const elementData = replaceQuotes(element.getAttribute('xlink:href'));
+        lucid_model.addNewItem(elementData, element);
     };
 
-    // const lucid_elements = Array.from(lucid_container.querySelectorAll('a'));
-    // lucid_elements.forEach(lucid_parseData);
+    const visio_parseData = element => {
+        const elementData = replaceQuotes(element.getAttribute('xlink:href'));
+        visio_model.addNewItem(elementData, element);
+    };
+
+    const lucid_elements = Array.from(lucid_container.querySelectorAll('a'));
+    lucid_elements.forEach(lucid_parseData);
 
     const visio_elements = Array.from(visio_container.querySelectorAll('a'));
     visio_elements.forEach(visio_parseData);
 
-    // lucid_model.init();
+    lucid_model.init();
     visio_model.init();
     // disable links
     //container.addEventListener('click', e => e.preventDefault());
 
     // add event listenerslisteners
-    // lucid_elements.forEach(el => {
-    //     el.addEventListener('click', e => {
-    //         e.preventDefault();
-    //         lucid_model.clickEventhandler(e);
-    //     });
-    // });
+    lucid_elements.forEach(el => {
+        el.addEventListener('click', e => {
+            e.preventDefault();
+            lucid_model.clickEventhandler(e);
+        });
+    });
     visio_elements.forEach(el => {
         el.addEventListener('click', e => {
             e.preventDefault();
