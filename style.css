@@ -14,9 +14,9 @@ body {
     font-weight: 800;
 }
 
-#SVG-container>object {
+#SVG-container > object {
     width: 48%;
-    margin: 0 1%;
+    margin: 1%;
     font-size: 0;
     border: 1px solid orange;
     box-sizing: border-box;
